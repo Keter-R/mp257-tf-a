@@ -429,19 +429,15 @@ void bl2_el3_plat_arch_setup(void)
 #if !STM32MP_M33_TDCID
 {
     /*
-     * Configure a region within RISAB3 for shared memory at 0x10040000.
-     * This code uses raw register offsets and bit values derived from the
-     * STM32MP257 reference manual (RM0492) because the standard TF-A
-     * headers do not expose all necessary bitfield definitions.
-     *
-     * We will use Region 1 for this configuration.
+     * Configure a region within RISAB4 (protects DDR) for shared memory.
+     * New address is 0xFE800000. We will use Region 1.
      */
-    const uintptr_t SHARED_MEM_BASE_ADDR = 0x10040000;
+    const uintptr_t SHARED_MEM_BASE_ADDR = 0xFE800000; // 更新地址
     const uint32_t  SHARED_MEM_SIZE      = 0x1000;
     uint32_t rgnr_val;
     uint32_t acr_val;
 
-    /* Register Offsets for Region 1 (from RM0492) */
+    /* Register Offsets for Region 1 */
     #define RISAB_RGNR1_OFFSET 0x010U
     #define RISAB_ACR1_OFFSET  0x014U
 
@@ -453,39 +449,27 @@ void bl2_el3_plat_arch_setup(void)
     #define PERM_READ_ONLY  0x1U
     #define PERM_READ_WRITE 0x3U
 
-    /* Master IDs (from RM0492, Table "Bus master identifiers") */
+    /* Master IDs */
     #define MASTER_ID_A35_NS 0x1U
     #define MASTER_ID_M33_NS 0x5U
 
-    /* Helper macro to build ACR value: (permission << (master_id * 4)) */
+    /* Helper macro to build ACR value */
     #define BUILD_ACR_FIELD(master_id, perm) ((perm) << ((master_id) * 4U))
 
-    /*
-     * Configure Region 1 Geometry Register (RGNR1):
-     * Bits [31:12] = Base Address (already aligned)
-     * Bits [27:16] = Size in 4KB blocks minus 1. For 4KB, this is (4/4 - 1) = 0.
-     */
     rgnr_val = (SHARED_MEM_BASE_ADDR & RGNR_BASE_MASK) |
                ((((SHARED_MEM_SIZE / 4096U) - 1U) << RGNR_SIZE_SHIFT));
 
-    /*
-     * Configure Region 1 Access Control Register (ACR1):
-     * Set permissions for each master.
-     */
     acr_val = BUILD_ACR_FIELD(MASTER_ID_A35_NS, PERM_READ_ONLY) |
               BUILD_ACR_FIELD(MASTER_ID_M33_NS, PERM_READ_WRITE);
 
-    /* Write the configuration to RISAB3 Region 1 registers */
-    mmio_write_32(RISAB3_BASE + RISAB_RGNR1_OFFSET, rgnr_val);
-    mmio_write_32(RISAB3_BASE + RISAB_ACR1_OFFSET, acr_val);
+    /* Write the configuration to RISAB4 registers */
+    mmio_write_32(RISAB4_BASE + RISAB_RGNR1_OFFSET, rgnr_val); //  使用 RISAB4_BASE
+    mmio_write_32(RISAB4_BASE + RISAB_ACR1_OFFSET, acr_val);  //  使用 RISAB4_BASE
 
-    /*
-     * Enable Region 1 in the Control Register (CR).
-     * The enable bit for Region 1 is bit 1.
-     */
-    mmio_setbits_32(RISAB3_BASE + RISAB_CR, BIT(1));
+    /* Enable Region 1 in the Control Register (CR) */
+    mmio_setbits_32(RISAB4_BASE + RISAB_CR, BIT(1)); // 使用 RISAB4_BASE
 
-    INFO("RISAB3: Configured Region 1 for shared memory @ 0x%lx\n", SHARED_MEM_BASE_ADDR);
+    INFO("RISAB4: Configured Region 1 for shared memory @ 0x%lx\n", SHARED_MEM_BASE_ADDR);
 }
 #endif
 /*****************************************************************/
