@@ -423,6 +423,60 @@ void bl2_el3_plat_arch_setup(void)
 	 */
 	mmio_write_32(RISAB3_BASE + RISAB_CR, RISAB_CR_SRWIAD);
 #endif
+/*****************************************************************/
+/* START: Custom RISAB configuration for M-core/A-core shared memory */
+/*****************************************************************/
+#if !STM32MP_M33_TDCID
+{
+    /*
+     * Configure a region within RISAB3 for shared memory at 0x10040000.
+     * RISAB3 is verified to be the instance protecting SRAM1.
+     * We will use Region 1 for this configuration.
+     *
+     * Region configuration:
+     * - Base address: 0x10040000
+     * - Size: 4KB (0x1000)
+     *
+     * Access Control:
+     * - Cortex-A35 Non-Secure (MASTER_ID_A35_NS): Read-Only
+     * - Cortex-M33 Non-Secure (MASTER_ID_M33_NS): Read-Write
+     */
+    const uintptr_t SHARED_MEM_BASE_ADDR = 0x10040000;
+    const uint32_t  SHARED_MEM_SIZE      = 0x1000;
+    uint32_t rgnr_val;
+    uint32_t acr_val;
+
+    /*
+     * Configure Region 1 Geometry Register (RGNR1):
+     * Bits [31:12] = Base Address
+     * Bits [27:16] = Size in 4KB blocks minus 1. For 4KB, this is 0.
+     */
+    rgnr_val = (SHARED_MEM_BASE_ADDR & RISAB_RGNR_BASE_MASK) |
+               ((((SHARED_MEM_SIZE / 4096U) - 1U) << RISAB_RGNR_SIZE_SHIFT) & RISAB_RGNR_SIZE_MASK);
+
+    /*
+     * Configure Region 1 Access Control Register (ACR1):
+     * Set permissions for each master.
+     */
+    acr_val = RISAB_ACR_P_M(MASTER_ID_A35_NS, RISAB_ACR_PERM_RO) |
+              RISAB_ACR_P_M(MASTER_ID_M33_NS, RISAB_ACR_PERM_RW);
+
+    /* Write the configuration to RISAB3 Region 1 registers */
+    mmio_write_32(RISAB3_BASE + RISAB_RGNR1, rgnr_val);
+    mmio_write_32(RISAB3_BASE + RISAB_ACR1, acr_val);
+
+    /*
+     * Enable Region 1 in the Control Register (CR).
+     * We use setbits to avoid overwriting existing CR settings (like SRWIAD).
+     */
+    mmio_setbits_32(RISAB3_BASE + RISAB_CR, RISAB_CR_EN1);
+
+    INFO("RISAB3: Configured Region 1 for shared memory @ 0x%lx\n", SHARED_MEM_BASE_ADDR);
+}
+#endif
+/*****************************************************************/
+/* END: Custom RISAB configuration                               */
+/*****************************************************************/
 #endif /* STM32MP_DDR_FIP_IO_STORAGE || TRUSTED_BOARD_BOOT */
 
 	if (stm32_tamp_nvram_init() < 0) {
