@@ -412,6 +412,15 @@ void bl2_el3_plat_arch_setup(void)
 	if (stm32mp2_clk_init() < 0) {
 		panic();
 	}
+	/*****************************************************************/
+	/* START: *** THIS IS THE CRITICAL FIX ***                       */
+	/* Enable the clock for the RISAB4 peripheral. This MUST be done */
+	/* before any part of the system attempts to access it.          */
+	/*****************************************************************/
+		mmio_setbits_32(stm32mp_rcc_base() + RCC_SECENSETR, RCC_SECENSETR_RISAB4EN);
+	/*****************************************************************/
+	/* END: *** THIS IS THE CRITICAL FIX ***                         */
+	/*****************************************************************/
 
 #if STM32MP_DDR_FIP_IO_STORAGE || TRUSTED_BOARD_BOOT
 #if !STM32MP_M33_TDCID
