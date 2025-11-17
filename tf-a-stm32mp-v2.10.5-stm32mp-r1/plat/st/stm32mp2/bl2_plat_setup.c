@@ -467,7 +467,7 @@ void bl2_el3_plat_arch_setup(void)
     mmio_write_32(RISAB4_BASE + RISAB_ACR1_OFFSET, acr_val);  //  使用 RISAB4_BASE
 
     /* Enable Region 1 in the Control Register (CR) */
-    mmio_setbits_32(RISAB4_BASE + RISAB_CR, BIT(1)); // 使用 RISAB4_BASE
+    mmio_setbits_32(RISAB4_BASE + RISAB_CR, BIT(1) | BIT(17)); // 使用 RISAB4_BASE
 
     INFO("RISAB4: Configured Region 1 for shared memory @ 0x%lx\n", SHARED_MEM_BASE_ADDR);
 }
