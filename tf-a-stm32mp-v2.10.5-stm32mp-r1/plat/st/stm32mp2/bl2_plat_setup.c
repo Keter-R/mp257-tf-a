@@ -558,6 +558,7 @@ skip_console_init:
 	#define RISAB_RGNR1_OFFSET	0x010U
 	#define RISAB_ACR1_OFFSET	0x014U
 	#define RIFSC_RISAB4_ID		116U /* STM32MP257F/G/D/E RIFSC peripheral ID for RISAB4 */
+	#define RIFSC_PERM_SEC_PRIV_WR (BIT(0) | BIT(1) | BIT(2))
 
 	const uintptr_t SHARED_MEM_BASE_ADDR = 0xFA7F0000;
 	const uint32_t M33_NS_MASTER_ID = 0x5U;
