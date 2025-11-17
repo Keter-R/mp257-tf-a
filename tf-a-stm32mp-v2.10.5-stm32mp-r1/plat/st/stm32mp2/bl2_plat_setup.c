@@ -451,7 +451,7 @@ void bl2_el3_plat_arch_setup(void)
                                    CUSTOM_RCC_SECENSETR_RISAB4EN);
 
     /* 插入数据同步屏障，确保时钟使能操作完成 */
-    dsb(sy);
+    dsb();
 
     /*
      * 步骤 2: 通过 RIFSC 授予 Secure World 配置 RISAB4 的权限
