@@ -470,7 +470,7 @@ void bl2_el3_plat_arch_setup(void)
 	     * by configuring the higher-level RIFSC firewall.
 	     */
 	    INFO("RIFSC: Granting access to RISAB4 peripheral (ID %u) with perms 0x%x\n",
-	         CUSTOM_RIFSC_RISAB4_ID, CUSTOM_RIFSC_PERM_SEC_PRIV_WR);
+         	CUSTOM_RIFSC_RISAB4_ID, (unsigned int)CUSTOM_RIFSC_PERM_SEC_PRIV_WR);
 	    stm32_rifsc_ip_configure(RISAB4_BASE, CUSTOM_RIFSC_RISAB4_ID, CUSTOM_RIFSC_PERM_SEC_PRIV_WR);
 	
 	    /*
