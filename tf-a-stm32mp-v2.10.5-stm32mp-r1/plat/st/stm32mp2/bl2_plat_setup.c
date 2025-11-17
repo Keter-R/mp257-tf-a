@@ -553,31 +553,28 @@ skip_console_init:
 // #if !STM32MP_M33_TDCID
 {
 	/*
-	 * 根据 STM32MP257 参考手册 (RM0492), 定义 RISAB 寄存器偏移量
-	 * 这些宏可能在您的 TF-A 版本头文件中缺失.
+	 * 根据 STM32MP257 参考手册 (RM0492), 定义 RISAB 寄存器和RIFSC相关常量
 	 */
 	#define RISAB_RGNR1_OFFSET	0x010U
 	#define RISAB_ACR1_OFFSET	0x014U
+	#define RIFSC_RISAB4_ID		116U /* STM32MP257F/G/D/E RIFSC peripheral ID for RISAB4 */
 
-	/*
-	 * RISAB4 用于配置对DDR内存区域的访问权限。
-	 * STM32MP257参考手册 (RM0492) Table 105. Master ID numbers
-	 * Cortex-M33 Non-Secure Master ID 为 0x5
-	 */
 	const uintptr_t SHARED_MEM_BASE_ADDR = 0xFA7F0000;
 	const uint32_t M33_NS_MASTER_ID = 0x5U;
 	const uint32_t PERM_READ_WRITE = 0x3U;
 
-	/*
-	 * 辅助宏，用于构建访问控制寄存器的值
-	 * 每个Master占用4个bit，所以需要移位 master_id * 4
-	 */
 	#define BUILD_ACR_FIELD(master_id, perm) ((perm) << ((master_id) * 4U))
 
 	INFO("Configuring RISAB4 for M33 shared memory at 0x%lx\n", SHARED_MEM_BASE_ADDR);
 
 	/*
-	 * 步骤 1: 配置RISAB4的一个区域 (Region 1)
+	 * 步骤 1: 通过 RIFSC 授予 Secure World 配置 RISAB4 的权限 (关键步骤!)
+	 * 我们需要 Secure & Privileged 的写权限来修改寄存器。
+	 */
+	stm32_rifsc_ip_configure(RISAB4_BASE, RIFSC_RISAB4_ID, RIFSC_PERM_SEC_PRIV_WR);
+
+	/*
+	 * 步骤 2: 配置RISAB4的一个区域 (Region 1)
 	 */
 	/* 区域几何寄存器 (Region Geometry Register) - 设置基地址 */
 	mmio_write_32(RISAB4_BASE + RISAB_RGNR1_OFFSET, (SHARED_MEM_BASE_ADDR & 0xFFFFF000U));
@@ -590,7 +587,7 @@ skip_console_init:
 	mmio_setbits_32(RISAB4_BASE + RISAB_CR, BIT(16) | BIT(1) | BIT(0));
 
 	/*
-	 * 步骤 2: 验证配置 (非常重要!)
+	 * 步骤 3: 验证配置
 	 */
 	uint32_t read_cr = mmio_read_32(RISAB4_BASE + RISAB_CR);
 	uint32_t read_rgnr1 = mmio_read_32(RISAB4_BASE + RISAB_RGNR1_OFFSET);
@@ -605,7 +602,6 @@ skip_console_init:
 		NOTICE("RISAB4 configuration for shared memory SUCCESSFUL.\n");
 	} else {
 		ERROR("RISAB4 configuration for shared memory FAILED.\n");
-		/* 在开发阶段，如果配置失败，可以选择panic()来停住系统，方便调试 */
 		/* panic(); */
 	}
 }
