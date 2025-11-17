@@ -426,7 +426,7 @@ void bl2_el3_plat_arch_setup(void)
 /*****************************************************************/
 /* START: Custom RISAB configuration for M-core/A-core shared memory */
 /*****************************************************************/
-#if !STM32MP_M33_TDCID
+// #if !STM32MP_M33_TDCID
 {
     /*
      * Configure a region within RISAB4 (protects DDR) for shared memory.
@@ -472,7 +472,7 @@ void bl2_el3_plat_arch_setup(void)
     INFO("RISAB4: Configured Region 1 for shared memory @ 0x%lx\n", SHARED_MEM_BASE_ADDR);
     WARN("TF-A BOOT CHECK: *** M-CORE SHARED MEMORY IS RUNNING ***\n");
 }
-#endif
+// #endif
 /*****************************************************************/
 /* END: Custom RISAB configuration                               */
 /*****************************************************************/
