@@ -546,6 +546,80 @@ skip_console_init:
 		bl_mem_params->image_info.h.attr |= IMAGE_ATTRIB_SKIP_LOADING;
 	}
 #endif
+	
+/*****************************************************************/
+/* START: Custom RISAB configuration for M-core/A-core shared memory */
+/* 在您提供的代码中，将其放置在RISAB4时钟使能之后。             */
+/*****************************************************************/
+// #if !STM32MP_M33_TDCID  // 建议暂时注释掉此宏，确保代码被编译
+{
+    /*
+     * RISAB4 用于配置对DDR内存区域的访问权限。
+     * STM32MP257参考手册 (RM0492) Table 105. Master ID numbers
+     * Cortex-M33 Non-Secure Master ID 为 0x5
+     */
+    const uintptr_t SHARED_MEM_BASE_ADDR = 0xFA7F0000;
+    const uint32_t M33_NS_MASTER_ID = 0x5U;
+
+    /*
+     * 步骤 1: 授予Secure World对RISAB4外设的配置权限
+     * RIFSC_RISAB4_ID 在ST的头文件中通常有定义 (如 116U)
+     * 我们需要给它 Secure & Privileged 的写权限 (SEC|PRIV|WR = 0x7)
+     */
+    // 注意：stm32_rifsc_ip_configure 函数可能需要RISAB4的基地址和ID
+    // 如果函数不可用或不确定ID，可以直接写寄存器，但使用库函数更标准。
+    // 假设 stm32_rifsc_ip_configure 存在且可用
+    // stm32_rifsc_ip_configure(RISAB4_BASE, RIFSC_RISAB4_ID, RIFSC_PERM_SEC_PRIV_WR);
+    // 为确保代码独立性，这里可以省略，因为默认安全世界可能有权限。
+    // 如果遇到权限问题，需要取消注释并找到正确的ID。
+
+    /*
+     * 步骤 2: 配置RISAB4的一个区域 (例如 Region 1)
+     */
+    INFO("Configuring RISAB4 for M33 shared memory at 0x%lx\n", SHARED_MEM_BASE_ADDR);
+
+    // 区域几何寄存器 (Region Geometry Register)
+    // 设置基地址。地址必须4KB对齐。您的地址0xFA7F0000符合要求。
+    // RGNRx[ADDR_END] = 0, RGNRx[ADDR_START] = base_addr >> 12
+    mmio_write_32(RISAB4_BASE + RISAB_RGNR1, (SHARED_MEM_BASE_ADDR & 0xFFFFF000U));
+
+    // 区域访问控制寄存器 (Access Control Register)
+    // 为 M33_NS_MASTER_ID (0x5) 授予读写权限 (0b11)
+    // 每个Master占用4个bit，所以需要移位 M33_NS_MASTER_ID * 4
+    #define PERM_READ_WRITE 0x3U
+    #define BUILD_ACR_FIELD(master_id, perm) ((perm) << ((master_id) * 4U))
+    mmio_write_32(RISAB4_BASE + RISAB_ACR1, BUILD_ACR_FIELD(M33_NS_MASTER_ID, PERM_READ_WRITE));
+
+    // 控制寄存器 (Control Register)
+    // 使能 Region 1 (RG1EN, bit 16) 和 RISAB 本身 (EN, bit 0)
+    // 同时设置 SRWIAD (bit 1) 允许安全世界读写非安全区域（调试时有用）
+    mmio_setbits_32(RISAB4_BASE + RISAB_CR, BIT(16) | BIT(1) | BIT(0));
+
+    /*
+     * 步骤 3: 验证配置 (非常重要!)
+     * 回读寄存器值并打印，确认写入成功。
+     */
+    uint32_t read_cr = mmio_read_32(RISAB4_BASE + RISAB_CR);
+    uint32_t read_rgnr1 = mmio_read_32(RISAB4_BASE + RISAB_RGNR1);
+    uint32_t read_acr1 = mmio_read_32(RISAB4_BASE + RISAB_ACR1);
+    uint32_t expected_acr = BUILD_ACR_FIELD(M33_NS_MASTER_ID, PERM_READ_WRITE);
+
+    INFO("RISAB4 Read-back: CR=0x%x, RGNR1=0x%x, ACR1=0x%x\n", read_cr, read_rgnr1, read_acr1);
+
+    if (((read_cr & (BIT(16) | BIT(0))) == (BIT(16) | BIT(0))) &&
+        (read_rgnr1 == (SHARED_MEM_BASE_ADDR & 0xFFFFF000U)) &&
+        (read_acr1 == expected_acr)) {
+        NOTICE("RISAB4 configuration for shared memory SUCCESSFUL.\n");
+    } else {
+        ERROR("RISAB4 configuration for shared memory FAILED.\n");
+        // 在开发阶段，如果配置失败，可以选择panic()来停住系统，方便调试
+        // panic();
+    }
+}
+// #endif
+/*****************************************************************/
+/* END: Custom RISAB configuration                               */
+/*****************************************************************/
 
 	stm32mp_io_setup();
 }
