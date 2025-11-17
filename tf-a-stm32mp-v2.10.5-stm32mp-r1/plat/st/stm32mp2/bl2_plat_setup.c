@@ -482,6 +482,16 @@ void bl2_el3_plat_arch_setup(void)
 	    /* Helper macro to build ACR value */
 	    #define BUILD_ACR_FIELD(master_id, perm) ((perm) << ((master_id) * 4U))
 	
+	    /*****************************************************************/
+	    /* START: *** THIS IS THE FIX ***                                */
+	    /* Grant Secure World access to configure the RISAB4 peripheral. */
+	    /*****************************************************************/
+	    stm32_rifsc_ip_configure(STM32MP2_RIMU_RISAB4, STM32MP25_RIFSC_RISAB4_ID,
+	                             RIFSC_SEC_PRIV_WR_EN);
+	    /*****************************************************************/
+	    /* END: *** THIS IS THE FIX ***                                  */
+	    /*****************************************************************/
+	
 	    rgnr_val = (SHARED_MEM_BASE_ADDR & RGNR_BASE_MASK) |
 	               ((((SHARED_MEM_SIZE / 4096U) - 1U) << RGNR_SIZE_SHIFT));
 	
@@ -511,6 +521,10 @@ void bl2_el3_plat_arch_setup(void)
 	    /* END: DEBUG READ-BACK CODE                                     */
 	    /*****************************************************************/
 	}
+	// #endif
+	/*****************************************************************/
+	/* END: Custom RISAB configuration                               */
+	/*****************************************************************/
 
 	iac_dump();
 
