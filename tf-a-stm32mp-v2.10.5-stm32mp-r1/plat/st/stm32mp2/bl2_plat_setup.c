@@ -453,79 +453,6 @@ void bl2_el3_plat_arch_setup(void)
 	if (stm32mp_uart_console_setup() != 0) {
 		goto skip_console_init;
 	}
-	/*****************************************************************/
-	/* START: Custom RISAB configuration for M-core/A-core shared memory */
-	/*****************************************************************/
-	// #if !STM32MP_M33_TDCID
-	{
-	    /*
-	     * Step 1: Define all necessary constants locally based on the Reference Manual (RM0457).
-	     * This ensures the code compiles regardless of the TF-A version.
-	     */
-	    #define CUSTOM_RIFSC_RISAB4_ID        116U
-	    #define CUSTOM_RIFSC_PERM_SEC_PRIV_WR (BIT(0) | BIT(1) | BIT(2)) /* SEC | PRIV | WR */
-	
-	    /*
-	     * Step 2: Grant Secure World write access to the RISAB4 peripheral itself
-	     * by configuring the higher-level RIFSC firewall.
-	     */
-	    INFO("RIFSC: Granting access to RISAB4 peripheral (ID %u) with perms 0x%x\n",
-         	CUSTOM_RIFSC_RISAB4_ID, (unsigned int)CUSTOM_RIFSC_PERM_SEC_PRIV_WR);
-	    stm32_rifsc_ip_configure(RISAB4_BASE, CUSTOM_RIFSC_RISAB4_ID, CUSTOM_RIFSC_PERM_SEC_PRIV_WR);
-	
-	    /*
-	     * Step 3: Now that we have access, configure RISAB4 to create a memory region
-	     * for the M-core.
-	     */
-	    const uintptr_t SHARED_MEM_BASE_ADDR = 0xFA7F0000;
-	    const uint32_t  SHARED_MEM_SIZE      = 0x1000;
-	    uint32_t rgnr_val;
-	    uint32_t acr_val;
-	
-	    /* Register Offsets for Region 1 */
-	    #define RISAB_RGNR1_OFFSET 0x010U
-	    #define RISAB_ACR1_OFFSET  0x014U
-	
-	    /* RGNR bitfields */
-	    #define RGNR_BASE_MASK  0xFFFFF000U
-	    #define RGNR_SIZE_SHIFT 16U
-	    
-	    /* ACR Permissions & Master IDs */
-	    #define PERM_READ_WRITE 0x3U
-	    #define MASTER_ID_M33_NS 0x5U
-	    #define BUILD_ACR_FIELD(master_id, perm) ((perm) << ((master_id) * 4U))
-	
-	    rgnr_val = (SHARED_MEM_BASE_ADDR & RGNR_BASE_MASK) |
-	               ((((SHARED_MEM_SIZE / 4096U) - 1U) << RGNR_SIZE_SHIFT));
-	
-	    /* Give M33 Non-Secure R/W access. Other masters get no access by default. */
-	    acr_val = BUILD_ACR_FIELD(MASTER_ID_M33_NS, PERM_READ_WRITE);
-	
-	    /* Write the configuration to RISAB4 registers */
-	    mmio_write_32(RISAB4_BASE + RISAB_RGNR1_OFFSET, rgnr_val);
-	    mmio_write_32(RISAB4_BASE + RISAB_ACR1_OFFSET, acr_val);
-	
-	    /* Enable Region 1 AND the global RISAB4 controller */
-	    mmio_setbits_32(RISAB4_BASE + RISAB_CR, BIT(16) | BIT(1));
-	
-	    INFO("RISAB4: Configured Region 1 for shared memory @ 0x%lx\n", SHARED_MEM_BASE_ADDR);
-	    WARN("TF-A BOOT CHECK: *** M-CORE SHARED MEMORY IS RUNNING ***\n");
-	
-	    /*
-	     * Step 4: Read back the registers to verify the configuration was successful.
-	     */
-	    uint32_t read_cr = mmio_read_32(RISAB4_BASE + RISAB_CR);
-	    uint32_t read_rgnr1 = mmio_read_32(RISAB4_BASE + RISAB_RGNR1_OFFSET);
-	    uint32_t read_acr1 = mmio_read_32(RISAB4_BASE + RISAB_ACR1_OFFSET);
-	    uint32_t expected_acr = 0x300000; /* M33_NS (Master 5) gets R/W (0x3) */
-	
-	    WARN("RISAB4 READ-BACK: CR=0x%x, RGNR1=0x%x, ACR1=0x%x\n", read_cr, read_rgnr1, read_acr1);
-	    WARN("RISAB4 EXPECTED: CR=0x10002, RGNR1=0xfa7f0000, ACR1=0x%x\n", expected_acr);
-	}
-	// #endif
-	/*****************************************************************/
-	/* END: Custom RISAB configuration                               */
-	/*****************************************************************/
 
 	iac_dump();
 
@@ -591,6 +518,50 @@ skip_console_init:
 				 RIFSC_USB_BOOT_USB3DR_RIMC_CONF);
 #endif /* STM32MP25 */
 #endif /* STM32MP_USB_PROGRAMMER */
+
+/*****************************************************************/
+/* START: Custom RISAB configuration for M-core/A-core shared memory */
+/* THIS IS THE CORRECT AND SAFE LOCATION TO PLACE THIS CODE      */
+/*****************************************************************/
+// #if !STM32MP_M33_TDCID
+{
+    /* Define all necessary constants locally to ensure compilation */
+    #define CUSTOM_RIFSC_RISAB4_ID        116U
+    #define CUSTOM_RIFSC_PERM_SEC_PRIV_WR (BIT(0) | BIT(1) | BIT(2)) /* SEC | PRIV | WR */
+
+    /* Step 1: Grant Secure World access to the RISAB4 peripheral via RIFSC */
+    stm32_rifsc_ip_configure(RISAB4_BASE, CUSTOM_RIFSC_RISAB4_ID, CUSTOM_RIFSC_PERM_SEC_PRIV_WR);
+
+    /* Step 2: Configure RISAB4 to create a memory region for the M-core */
+    const uintptr_t SHARED_MEM_BASE_ADDR = 0xFA7F0000;
+    #define RISAB_RGNR1_OFFSET 0x010U
+    #define RISAB_ACR1_OFFSET  0x014U
+    #define MASTER_ID_M33_NS 0x5U
+    #define PERM_READ_WRITE 0x3U
+    #define BUILD_ACR_FIELD(master_id, perm) ((perm) << ((master_id) * 4U))
+
+    /* Write geometry, access control, and enable the region */
+    mmio_write_32(RISAB4_BASE + RISAB_RGNR1_OFFSET, (SHARED_MEM_BASE_ADDR & 0xFFFFF000U));
+    mmio_write_32(RISAB4_BASE + RISAB_ACR1_OFFSET, BUILD_ACR_FIELD(MASTER_ID_M33_NS, PERM_READ_WRITE));
+    mmio_setbits_32(RISAB4_BASE + RISAB_CR, BIT(16) | BIT(1));
+
+    /* Step 3: Read back and verify */
+    uint32_t read_cr = mmio_read_32(RISAB4_BASE + RISAB_CR);
+    uint32_t read_acr1 = mmio_read_32(RISAB4_BASE + RISAB_ACR1_OFFSET);
+    uint32_t expected_acr = 0x300000;
+
+    INFO("Shared Memory: RISAB4 config done.\n");
+    WARN("RISAB4 READ-BACK: CR=0x%x, ACR1=0x%x\n", read_cr, read_acr1);
+    if (read_cr == 0x10002 && read_acr1 == expected_acr) {
+        WARN("RISAB4 configuration SUCCESSFUL.\n");
+    } else {
+        ERROR("RISAB4 configuration FAILED.\n");
+    }
+}
+// #endif
+/*****************************************************************/
+/* END: Custom RISAB configuration                               */
+/*****************************************************************/
 
 #if !STM32MP_M33_TDCID
 	/*
