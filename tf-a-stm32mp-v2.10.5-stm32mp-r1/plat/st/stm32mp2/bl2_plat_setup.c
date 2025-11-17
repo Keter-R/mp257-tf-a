@@ -555,6 +555,8 @@ skip_console_init:
 	/*
 	 * 根据 STM32MP257 参考手册 (RM0492), 定义所有需要的常量
 	 */
+	#define CUSTOM_RCC_SECENSETR_OFFSET	0xA04U
+	#define CUSTOM_RCC_SECENSETR_RIFSCEN	BIT(1)
 	#define RISAB_RGNR1_OFFSET	0x010U
 	#define RISAB_ACR1_OFFSET	0x014U
 	#define RIFSC_RISAB4_ID		116U /* STM32MP257F/G/D/E RIFSC peripheral ID for RISAB4 */
