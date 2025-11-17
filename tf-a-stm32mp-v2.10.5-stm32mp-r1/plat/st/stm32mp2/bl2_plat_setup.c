@@ -432,7 +432,7 @@ void bl2_el3_plat_arch_setup(void)
      * Configure a region within RISAB4 (protects DDR) for shared memory.
      * New address is 0xFE800000. We will use Region 1.
      */
-    const uintptr_t SHARED_MEM_BASE_ADDR = 0xFE800000; // 更新地址
+    const uintptr_t SHARED_MEM_BASE_ADDR = 0xFA7F0000; // 更新地址
     const uint32_t  SHARED_MEM_SIZE      = 0x1000;
     uint32_t rgnr_val;
     uint32_t acr_val;
