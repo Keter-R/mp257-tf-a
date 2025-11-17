@@ -553,14 +553,15 @@ skip_console_init:
 // #if !STM32MP_M33_TDCID
 {
 	/*
-	 * 根据 STM32MP257 参考手册 (RM0492), 定义所有需要的常量
+	 * 根据 STM32MP257 参考手册 (RM0492), 定义所有需要的常量。
+	 * 这使得代码块完全自包含，不依赖于特定版本的TF-A头文件。
 	 */
 	#define CUSTOM_RCC_SECENSETR_OFFSET	0xA04U
 	#define CUSTOM_RCC_SECENSETR_RIFSCEN	BIT(1)
-	#define RISAB_RGNR1_OFFSET	0x010U
-	#define RISAB_ACR1_OFFSET	0x014U
-	#define RIFSC_RISAB4_ID		116U /* STM32MP257F/G/D/E RIFSC peripheral ID for RISAB4 */
-	#define RIFSC_PERM_SEC_PRIV_WR	(BIT(0) | BIT(1) | BIT(2)) /* SEC | PRIV | WR */
+	#define RISAB_RGNR1_OFFSET		0x010U
+	#define RISAB_ACR1_OFFSET		0x014U
+	#define RIFSC_RISAB4_ID			116U
+	#define RIFSC_PERM_SEC_PRIV_WR		(BIT(0) | BIT(1) | BIT(2))
 
 	const uintptr_t SHARED_MEM_BASE_ADDR = 0xFA7F0000;
 	const uint32_t M33_NS_MASTER_ID = 0x5U;
@@ -571,10 +572,10 @@ skip_console_init:
 	INFO("Configuring RISAB4 for M33 shared memory at 0x%lx\n", SHARED_MEM_BASE_ADDR);
 
 	/*
-	 * 步骤 1: 使能 RIFSC 外设时钟 (这是修复崩溃的关键!)
-	 * RIFSC 是管理所有 RIF 资源的主控制器，它本身也需要时钟。
+	 * 步骤 1: 使能 RIFSC 外设时钟 (修复崩溃的关键)
 	 */
-	mmio_setbits_32(stm32mp_rcc_base() + RCC_SECENSETR, RCC_SECENSETR_RIFSCEN);
+	mmio_setbits_32(stm32mp_rcc_base() + CUSTOM_RCC_SECENSETR_OFFSET,
+			CUSTOM_RCC_SECENSETR_RIFSCEN);
 
 	/*
 	 * 步骤 2: 通过 RIFSC 授予 Secure World 配置 RISAB4 的权限
@@ -584,14 +585,9 @@ skip_console_init:
 	/*
 	 * 步骤 3: 配置RISAB4的一个区域 (Region 1)
 	 */
-	/* 区域几何寄存器 (Region Geometry Register) - 设置基地址 */
 	mmio_write_32(RISAB4_BASE + RISAB_RGNR1_OFFSET, (SHARED_MEM_BASE_ADDR & 0xFFFFF000U));
-
-	/* 区域访问控制寄存器 (Access Control Register) - 为M33授予读写权限 */
 	mmio_write_32(RISAB4_BASE + RISAB_ACR1_OFFSET,
 		      BUILD_ACR_FIELD(M33_NS_MASTER_ID, PERM_READ_WRITE));
-
-	/* 控制寄存器 (Control Register) - 使能Region 1和RISAB本身 */
 	mmio_setbits_32(RISAB4_BASE + RISAB_CR, BIT(16) | BIT(1) | BIT(0));
 
 	/*
