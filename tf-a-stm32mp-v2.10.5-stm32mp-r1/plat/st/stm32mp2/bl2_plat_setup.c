@@ -458,6 +458,25 @@ void bl2_el3_plat_arch_setup(void)
 	/*****************************************************************/
 	// #if !STM32MP_M33_TDCID
 	{
+	    /*
+	     * Step 1: Define all necessary constants locally based on the Reference Manual (RM0457).
+	     * This ensures the code compiles regardless of the TF-A version.
+	     */
+	    #define CUSTOM_RIFSC_RISAB4_ID        116U
+	    #define CUSTOM_RIFSC_PERM_SEC_PRIV_WR (BIT(0) | BIT(1) | BIT(2)) /* SEC | PRIV | WR */
+	
+	    /*
+	     * Step 2: Grant Secure World write access to the RISAB4 peripheral itself
+	     * by configuring the higher-level RIFSC firewall.
+	     */
+	    INFO("RIFSC: Granting access to RISAB4 peripheral (ID %u) with perms 0x%x\n",
+	         CUSTOM_RIFSC_RISAB4_ID, CUSTOM_RIFSC_PERM_SEC_PRIV_WR);
+	    stm32_rifsc_ip_configure(RISAB4_BASE, CUSTOM_RIFSC_RISAB4_ID, CUSTOM_RIFSC_PERM_SEC_PRIV_WR);
+	
+	    /*
+	     * Step 3: Now that we have access, configure RISAB4 to create a memory region
+	     * for the M-core.
+	     */
 	    const uintptr_t SHARED_MEM_BASE_ADDR = 0xFA7F0000;
 	    const uint32_t  SHARED_MEM_SIZE      = 0x1000;
 	    uint32_t rgnr_val;
@@ -471,32 +490,16 @@ void bl2_el3_plat_arch_setup(void)
 	    #define RGNR_BASE_MASK  0xFFFFF000U
 	    #define RGNR_SIZE_SHIFT 16U
 	    
-	    /* ACR Permissions */
-	    #define PERM_READ_ONLY  0x1U
+	    /* ACR Permissions & Master IDs */
 	    #define PERM_READ_WRITE 0x3U
-	
-	    /* Master IDs */
-	    #define MASTER_ID_A35_NS 0x1U
 	    #define MASTER_ID_M33_NS 0x5U
-	
-	    /* Helper macro to build ACR value */
 	    #define BUILD_ACR_FIELD(master_id, perm) ((perm) << ((master_id) * 4U))
-	
-	    /*****************************************************************/
-	    /* START: *** THIS IS THE FIX ***                                */
-	    /* Grant Secure World access to configure the RISAB4 peripheral. */
-	    /*****************************************************************/
-	    stm32_rifsc_ip_configure(STM32MP2_RIMU_RISAB4, STM32MP25_RIFSC_RISAB4_ID,
-	                             RIFSC_SEC_PRIV_WR_EN);
-	    /*****************************************************************/
-	    /* END: *** THIS IS THE FIX ***                                  */
-	    /*****************************************************************/
 	
 	    rgnr_val = (SHARED_MEM_BASE_ADDR & RGNR_BASE_MASK) |
 	               ((((SHARED_MEM_SIZE / 4096U) - 1U) << RGNR_SIZE_SHIFT));
 	
-	    acr_val = BUILD_ACR_FIELD(MASTER_ID_A35_NS, PERM_READ_ONLY) |
-	              BUILD_ACR_FIELD(MASTER_ID_M33_NS, PERM_READ_WRITE);
+	    /* Give M33 Non-Secure R/W access. Other masters get no access by default. */
+	    acr_val = BUILD_ACR_FIELD(MASTER_ID_M33_NS, PERM_READ_WRITE);
 	
 	    /* Write the configuration to RISAB4 registers */
 	    mmio_write_32(RISAB4_BASE + RISAB_RGNR1_OFFSET, rgnr_val);
@@ -508,18 +511,16 @@ void bl2_el3_plat_arch_setup(void)
 	    INFO("RISAB4: Configured Region 1 for shared memory @ 0x%lx\n", SHARED_MEM_BASE_ADDR);
 	    WARN("TF-A BOOT CHECK: *** M-CORE SHARED MEMORY IS RUNNING ***\n");
 	
-	    /*****************************************************************/
-	    /* START: DEBUG READ-BACK CODE                                   */
-	    /*****************************************************************/
+	    /*
+	     * Step 4: Read back the registers to verify the configuration was successful.
+	     */
 	    uint32_t read_cr = mmio_read_32(RISAB4_BASE + RISAB_CR);
 	    uint32_t read_rgnr1 = mmio_read_32(RISAB4_BASE + RISAB_RGNR1_OFFSET);
 	    uint32_t read_acr1 = mmio_read_32(RISAB4_BASE + RISAB_ACR1_OFFSET);
+	    uint32_t expected_acr = 0x300000; /* M33_NS (Master 5) gets R/W (0x3) */
 	
 	    WARN("RISAB4 READ-BACK: CR=0x%x, RGNR1=0x%x, ACR1=0x%x\n", read_cr, read_rgnr1, read_acr1);
-	    WARN("RISAB4 EXPECTED: CR=0x10002, RGNR1=0xfa7f0000, ACR1=0x300010\n");
-	    /*****************************************************************/
-	    /* END: DEBUG READ-BACK CODE                                     */
-	    /*****************************************************************/
+	    WARN("RISAB4 EXPECTED: CR=0x10002, RGNR1=0xfa7f0000, ACR1=0x%x\n", expected_acr);
 	}
 	// #endif
 	/*****************************************************************/
