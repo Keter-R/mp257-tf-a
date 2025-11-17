@@ -470,6 +470,7 @@ void bl2_el3_plat_arch_setup(void)
     mmio_setbits_32(RISAB4_BASE + RISAB_CR, BIT(1) | BIT(17)); // 使用 RISAB4_BASE
 
     INFO("RISAB4: Configured Region 1 for shared memory @ 0x%lx\n", SHARED_MEM_BASE_ADDR);
+    WARN("TF-A BOOT CHECK: *** M-CORE SHARED MEMORY IS RUNNING ***\n");
 }
 #endif
 /*****************************************************************/
