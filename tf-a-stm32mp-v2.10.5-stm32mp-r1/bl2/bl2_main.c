@@ -41,12 +41,12 @@
 void bl2_el3_setup(u_register_t arg0, u_register_t arg1, u_register_t arg2,
 		   u_register_t arg3)
 {
-	NOTICE("Entering bl2_el3_setup in bl2_main.c\n");
 	/* Perform early platform-specific setup */
 	bl2_el3_early_platform_setup(arg0, arg1, arg2, arg3);
 
 	/* Perform late platform-specific setup */
 	bl2_el3_plat_arch_setup();
+	NOTICE("Entering bl2_el3_setup in bl2_main.c\n");
 
 #if CTX_INCLUDE_PAUTH_REGS
 	/*
@@ -64,11 +64,11 @@ void bl2_el3_setup(u_register_t arg0, u_register_t arg1, u_register_t arg2,
 void bl2_setup(u_register_t arg0, u_register_t arg1, u_register_t arg2,
 	       u_register_t arg3)
 {
-	NOTICE("Entering bl2_setup in bl2_main.c\n");
 	/* Perform early platform-specific setup */
 	bl2_early_platform_setup2(arg0, arg1, arg2, arg3);
 	/* Perform late platform-specific setup */
 	bl2_plat_arch_setup();
+	NOTICE("Entering bl2_setup in bl2_main.c\n");
 
 #if CTX_INCLUDE_PAUTH_REGS
 	/*
