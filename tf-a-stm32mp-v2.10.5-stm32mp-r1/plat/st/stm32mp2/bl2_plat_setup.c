@@ -373,6 +373,7 @@ end:
 
 void bl2_el3_plat_arch_setup(void)
 {
+	NOTICE("Entering bl2_el3_plat_arch_setup in bl2_plat_setup.c\n");
 	const char *board_model;
 	boot_api_context_t *boot_context =
 		(boot_api_context_t *)stm32mp_get_boot_ctx_address();
