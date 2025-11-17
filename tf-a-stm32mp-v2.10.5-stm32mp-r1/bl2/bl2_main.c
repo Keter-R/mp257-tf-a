@@ -41,6 +41,7 @@
 void bl2_el3_setup(u_register_t arg0, u_register_t arg1, u_register_t arg2,
 		   u_register_t arg3)
 {
+	NOTICE("Entering bl2_el3_setup in bl2_main.c\n");
 	/* Perform early platform-specific setup */
 	bl2_el3_early_platform_setup(arg0, arg1, arg2, arg3);
 
@@ -63,9 +64,9 @@ void bl2_el3_setup(u_register_t arg0, u_register_t arg1, u_register_t arg2,
 void bl2_setup(u_register_t arg0, u_register_t arg1, u_register_t arg2,
 	       u_register_t arg3)
 {
+	NOTICE("Entering bl2_setup in bl2_main.c\n");
 	/* Perform early platform-specific setup */
 	bl2_early_platform_setup2(arg0, arg1, arg2, arg3);
-	WARN("TF-A BOOT CHECK: *** bl2_plat_arch_setup ***\n");
 	/* Perform late platform-specific setup */
 	bl2_plat_arch_setup();
 
@@ -86,6 +87,7 @@ void bl2_setup(u_register_t arg0, u_register_t arg1, u_register_t arg2,
  ******************************************************************************/
 void bl2_main(void)
 {
+	NOTICE("Entering bl2_main in bl2_main.c\n");
 	entry_point_info_t *next_bl_ep_info;
 
 #if ENABLE_RUNTIME_INSTRUMENTATION
