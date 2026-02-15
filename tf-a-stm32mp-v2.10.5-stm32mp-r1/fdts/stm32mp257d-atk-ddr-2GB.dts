@@ -55,10 +55,9 @@
 &pinctrl {
     pwm17_init_pins: pwm17-init-0 {
         pins {
-            pinmux = <STM32_PINMUX('B', 10, GPIO)>;
-            output-high;      /* 强制输出高电平 */
-            bias-pull-up;  /* 上拉电阻 */
-            drive-push-pull;
+            pinmux = <STM32_PINMUX('B', 10, AF7)>; /* TIM17_CH1N */
+            drive-open-drain;
+	    bias-disable;
             slew-rate = <0>;
         };
     };
