@@ -51,6 +51,19 @@
 	status = "okay";
 };
 
+/* 添加 Pinctrl 定义，在启动阶段强制拉低风扇引脚 */
+&pinctrl {
+    pwm17_init_pins: pwm17-init-0 {
+        pins {
+            pinmux = <STM32_PINMUX('B', 10, GPIO)>;
+            output-low;      /* 强制输出低电平 */
+            bias-pull-down;  /* 下拉电阻 */
+            drive-push-pull;
+            slew-rate = <0>;
+        };
+    };
+};
+
 &i2c7 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c7_pins_a>;
@@ -60,6 +73,8 @@
 	status = "okay";
 	#address-cells = <1>;
 	#size-cells = <0>;
+	system-power-controller;
+        st,pmic-shutdown-unmask; 
 
 	pmic2: stpmic@33 {
 		compatible = "st,stpmic2";
@@ -109,6 +124,13 @@
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-always-on;
+		                /* 定义休眠(Standby/Mem)时的行为：关闭 */
+		                regulator-state-standby {
+		                    regulator-off-in-suspend;
+		                };
+		                regulator-state-mem {
+		                    regulator-off-in-suspend;
+		                };
 			};
 			vdda1v8_aon: ldo1 {
 				regulator-name = "vdda1v8_aon";
@@ -131,6 +153,13 @@
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-always-on;
+		                /* 定义休眠(Standby/Mem)时的行为：关闭 */
+		                regulator-state-standby {
+		                    regulator-off-in-suspend;
+		                };
+		                regulator-state-mem {
+		                    regulator-off-in-suspend;
+		                };
 			};
 			vpp_ddr: ldo5 {
 				regulator-name = "vpp_ddr";
